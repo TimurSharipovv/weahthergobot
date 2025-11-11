@@ -21,22 +21,34 @@ func New(bot *tgbotapi.BotAPI, owClient *openweather.OpenWeatherClient) *Handler
 	}
 }
 
-func (h *Handler) HandlerUpdate(update tgbotapi.Update) {
+func (handler *Handler) Start() {
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates := handler.bot.GetUpdatesChan(u)
+
+	for update := range updates {
+		handler.HandlerUpdate(update)
+	}
+}
+
+func (handler *Handler) HandlerUpdate(update tgbotapi.Update) {
 	if update.Message != nil { // If we got a message
 		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-		coordinates, err := h.owClient.Coordinates(update.Message.Text)
+		coordinates, err := handler.owClient.Coordinates(update.Message.Text)
 		if err != nil {
+			log.Println(err)
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "не смогли получить координаты")
 			msg.ReplyToMessageID = update.Message.MessageID
-			h.bot.Send(msg)
+			handler.bot.Send(msg)
 			return
 		}
 
-		weather, err := h.owClient.Weather(coordinates.Lat, coordinates.Lon)
+		weather, err := handler.owClient.Weather(coordinates.Lat, coordinates.Lon)
 		if err != nil {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "не смогли получить прогноз погоды в этой местности")
 			msg.ReplyToMessageID = update.Message.MessageID
-			h.bot.Send(msg)
+			handler.bot.Send(msg)
 			return
 		}
 
@@ -46,5 +58,6 @@ func (h *Handler) HandlerUpdate(update tgbotapi.Update) {
 		)
 		msg.ReplyToMessageID = update.Message.MessageID
 
-		h.bot.Send(msg)
+		handler.bot.Send(msg)
 	}
+}
