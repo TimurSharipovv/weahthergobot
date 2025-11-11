@@ -44,7 +44,7 @@ func (o OpenWeatherClient) Coordinates(city string) (Coordinates, error) {
 }
 
 func (o OpenWeatherClient) Weather(lat, lon float64) (Weather, error) {
-	url := "https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&appid=%s"
+	url := "https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&appid=%s&units=metric"
 	resp, err := http.Get(fmt.Sprintf(url, lat, lon, o.apiKey))
 
 	if err != nil {
