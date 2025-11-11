@@ -48,6 +48,42 @@ func (handler *Handler) HandlerUpdate(update tgbotapi.Update) {
 			handler.bot.Send(msg)
 			msg.ReplyToMessageID = update.Message.MessageID
 			return
+
+		case "weather":
+			city, ok := handler.userCities[update.Message.From.ID]
+			if !ok {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Сначала установите город с помощью команды /city"))
+				handler.bot.Send(msg)
+				msg.ReplyToMessageID = update.Message.MessageID
+				return
+			}
+			coordinates, err := handler.owClient.Coordinates(city)
+			if err != nil {
+				log.Println(err)
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "не смогли получить координаты")
+				msg.ReplyToMessageID = update.Message.MessageID
+				handler.bot.Send(msg)
+				return
+			}
+
+			weather, err := handler.owClient.Weather(coordinates.Lat, coordinates.Lon)
+			if err != nil {
+				log.Println(err)
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "не смогли получить прогноз погоды в этой местности")
+				msg.ReplyToMessageID = update.Message.MessageID
+				handler.bot.Send(msg)
+				return
+			}
+
+			msg := tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				fmt.Sprintf("Температура в городе %s: %d градусов", city, int(math.Round(weather.Temp))),
+			)
+			msg.ReplyToMessageID = update.Message.MessageID
+
+			handler.bot.Send(msg)
+			return
+
 		default:
 			log.Printf("New comand [%s], %s", update.Message.From.UserName, update.Message.Text)
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "такой команды не существует")
@@ -56,32 +92,4 @@ func (handler *Handler) HandlerUpdate(update tgbotapi.Update) {
 			return
 		}
 	}
-
-	// If we got a message
-	log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-	coordinates, err := handler.owClient.Coordinates(update.Message.Text)
-	if err != nil {
-		log.Println(err)
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "не смогли получить координаты")
-		msg.ReplyToMessageID = update.Message.MessageID
-		handler.bot.Send(msg)
-		return
-	}
-
-	weather, err := handler.owClient.Weather(coordinates.Lat, coordinates.Lon)
-	if err != nil {
-		log.Println(err)
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "не смогли получить прогноз погоды в этой местности")
-		msg.ReplyToMessageID = update.Message.MessageID
-		handler.bot.Send(msg)
-		return
-	}
-
-	msg := tgbotapi.NewMessage(
-		update.Message.Chat.ID,
-		fmt.Sprintf("Температура в %s: %d градусов", update.Message.Text, int(math.Round(weather.Temp))),
-	)
-	msg.ReplyToMessageID = update.Message.MessageID
-
-	handler.bot.Send(msg)
 }
