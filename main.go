@@ -30,7 +30,7 @@ func main() {
 
 	updates := bot.GetUpdatesChan(u)
 
-	owClient := openweather.New(os.Getenv("OPENWEATHER_KEY"))
+	owClient := openweather.New(os.Getenv("OPENWEATHERAPI_KEY"))
 
 	for update := range updates {
 		if update.Message != nil { // If we got a message
@@ -43,9 +43,17 @@ func main() {
 				continue
 			}
 
+			weather, err := owClient.Weather(coordinates.Lat, coordinates.Lon)
+			if err != nil {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "не смогли получить прогноз погоды в этой местности")
+				msg.ReplyToMessageID = update.Message.MessageID
+				bot.Send(msg)
+				continue
+			}
+
 			msg := tgbotapi.NewMessage(
 				update.Message.Chat.ID,
-				fmt.Sprintf("Долгота %f, Широта %f", coordinates.Lon, coordinates.Lat),
+				fmt.Sprintf("Температура в %s: %f", update.Message.Text, weather.Temp),
 			)
 			msg.ReplyToMessageID = update.Message.MessageID
 
