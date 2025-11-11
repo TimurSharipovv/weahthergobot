@@ -10,14 +10,16 @@ import (
 )
 
 type Handler struct {
-	bot      *tgbotapi.BotAPI
-	owClient *openweather.OpenWeatherClient
+	bot        *tgbotapi.BotAPI
+	owClient   *openweather.OpenWeatherClient
+	userCities map[int64]string
 }
 
 func New(bot *tgbotapi.BotAPI, owClient *openweather.OpenWeatherClient) *Handler {
 	return &Handler{
-		bot:      bot,
-		owClient: owClient,
+		bot:        bot,
+		owClient:   owClient,
+		userCities: make(map[int64]string),
 	}
 }
 
@@ -28,14 +30,33 @@ func (handler *Handler) Start() {
 	updates := handler.bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		handler.handlerUpdate(update)
+		handler.HandlerUpdate(update)
 	}
 }
 
-func (handler *Handler) handlerUpdate(update tgbotapi.Update) {
+func (handler *Handler) HandlerUpdate(update tgbotapi.Update) {
 	if update.Message == nil {
 		return
 	}
+
+	if update.Message.IsCommand() {
+		switch update.Message.Command() {
+		case "city":
+			city := update.Message.CommandArguments()
+			handler.userCities[update.Message.Chat.ID] = city
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Город %s сохранен", city))
+			handler.bot.Send(msg)
+			msg.ReplyToMessageID = update.Message.MessageID
+			return
+		default:
+			log.Printf("New comand [%s], %s", update.Message.From.UserName, update.Message.Text)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "такой команды не существует")
+			msg.ReplyToMessageID = update.Message.MessageID
+			handler.bot.Send(msg)
+			return
+		}
+	}
+
 	// If we got a message
 	log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 	coordinates, err := handler.owClient.Coordinates(update.Message.Text)
